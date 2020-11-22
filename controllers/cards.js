@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Card = require('../models/card');
 
 module.exports.getCards = (req, res) => {
@@ -14,56 +15,59 @@ module.exports.createCard = (req, res) => {
     .then((card) => {
       res.send({ data: card });
     })
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        return res.status(400).send({ message: err.message });
-      }
-      return res.status(500).send({ message: err.message });
+    .catch(() => {
+      res.status(400).send({ message: 'Переданы некорректные данные' });
     });
 };
 
 module.exports.deleteCard = (req, res) => {
-  Card.findByIdAndRemove(req.params._id)
-    .orFail(new Error('NotValid'))
+  console.log(req.params);
+  const { cardId } = req.params;
+  Card.findByIdAndRemove({ _id: cardId })
     .then((card) => {
       res.send({ data: card });
     })
-    .catch((err) => {
-      if (err.name === 'NotValid') {
-        return res.status(404).send({ message: 'Нет карточки с таким id' });
-      }
-      return res.status(500).send({ message: err.message });
+    .catch(() => {
+      res.status(404).send({ message: 'Нет карточки с таким id' });
     });
 };
 
 module.exports.likeCard = (req, res) => {
-  Card.findByIdAndUpdate(req.params._id,
-    { $addToSet: { likes: req.user._id } },
-    { new: true })
-    .orFail(new Error('NotValid'))
-    .then((likes) => {
-      res.send({ data: likes });
-    })
-    .catch((err) => {
-      if (err.name === 'NotValid') {
-        return res.status(404).send({ message: 'Нет карточки с таким id' });
-      }
-      return res.status(500).send({ message: err.message });
-    });
+  if (mongoose.Types.ObjectId.isValid(req.params._id)) {
+    const cardId = mongoose.Types.ObjectId(req.params._id);
+    Card.findByIdAndUpdate({ _id: cardId },
+      { $addToSet: { likes: req.user._id } },
+      { new: true, runValidators: true })
+      .then((likes) => {
+        if (!likes) {
+          return res.status(404).send({ message: 'Нет пользователя с таким id' });
+        }
+        return res.send(likes);
+      })
+      .catch((err) => {
+        res.status(500).send({ message: err.message });
+      });
+  } else {
+    res.status(400).send({ message: 'Переданы некорректные данные' });
+  }
 };
 
 module.exports.dislikeCard = (req, res) => {
-  Card.findByIdAndUpdate(req.params._id,
-    { $pull: { likes: req.user._id } },
-    { new: true })
-    .orFail(new Error('NotValid'))
-    .then((likes) => {
-      res.send({ data: likes });
-    })
-    .catch((err) => {
-      if (err.name === 'NotValid') {
-        return res.status(404).send({ message: 'Нет карточки с таким id' });
-      }
-      return res.status(500).send({ message: err.message });
-    });
+  if (mongoose.Types.ObjectId.isValid(req.params._id)) {
+    const cardId = mongoose.Types.ObjectId(req.params._id);
+    Card.findByIdAndUpdate({ _id: cardId },
+      { $pull: { likes: req.user._id } },
+      { new: true, runValidators: true })
+      .then((likes) => {
+        if (!likes) {
+          return res.status(404).send({ message: 'Нет пользователя с таким id' });
+        }
+        return res.send(likes);
+      })
+      .catch((err) => {
+        res.status(500).send({ message: err.message });
+      });
+  } else {
+    res.status(400).send({ message: 'Переданы некорректные данные' });
+  }
 };
